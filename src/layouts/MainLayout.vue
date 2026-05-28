@@ -25,7 +25,12 @@
             </v-list-item>
             <v-divider class="my-1" />
             <v-list density="compact" nav class="pb-2">
-              <v-list-item prepend-icon="mdi-account-outline" title="My Profile" rounded="lg" @click="profileMenu = false" />
+              <v-list-item
+                prepend-icon="mdi-account-outline"
+                title="My Profile"
+                rounded="lg"
+                @click="goToProfile"
+              />
               <v-list-item prepend-icon="mdi-cog-outline" title="Settings" rounded="lg" @click="profileMenu = false" />
             </v-list>
             <v-divider />
@@ -71,12 +76,13 @@ export default {
   },
   computed: {
     currentPageTitle() {
-      const map = {
-        '/dashboard': 'Dashboard',
-        '/documents': 'Documents',
-        '/employees': 'Employees',
-        '/calendar': 'Calendar',
-      }
+    const map = {
+      '/dashboard': 'Dashboard',
+      '/documents': 'Documents',
+      '/employees': 'Employees',
+      '/calendar': 'Calendar',
+      '/profile': 'Profile',
+    }
       return map[this.$route.path] || 'Pesbuk'
     },
 
@@ -95,6 +101,10 @@ export default {
     },
   },
   methods: {
+    goToProfile() {
+      this.profileMenu = false
+      this.$router.push('/profile')
+    },
     onLogoutClick() {
       this.profileMenu = false
       this.logoutDialog = true

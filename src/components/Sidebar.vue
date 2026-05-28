@@ -24,7 +24,7 @@
     <!-- Nav Items -->
     <nav class="sidebar__nav">
       <RouterLink
-        v-for="item in navItems"
+        v-for="item in visibleNavItems"
         :key="item.to"
         :to="item.to"
         class="sidebar__item"
@@ -67,6 +67,18 @@ export default {
     onLeave() {
       this.hovered = false
       this.$emit('hover-change', false)
+    },
+  },
+
+  computed: {
+    visibleNavItems() {
+      const role = localStorage.getItem('role')
+
+      if (role === 'admin') {
+        return this.navItems
+      }
+
+      return this.navItems.filter(item => item.to !== '/employees')
     },
   },
 }

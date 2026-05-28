@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 
 import LoginPage from '@/views/LoginPage.vue'
+import ProfilePage from '@/views/ProfilePage.vue'
 import DashboardPage from '@/views/DashboardPage.vue'
 import DocumentsPage from '@/views/DocumentsPage.vue'
 import EmployeeListPage from '@/views/EmployeeListPage.vue'
@@ -30,6 +31,10 @@ const routes = [
 
     children: [
       {
+        path: 'profile',
+        component: ProfilePage,
+      },
+      {
         path: 'dashboard',
         component: DashboardPage,
       },
@@ -41,6 +46,7 @@ const routes = [
             {
         path: 'employees',
         component: EmployeeListPage,
+        meta: { adminOnly: true }
       },
       {
         path: 'calendar',
@@ -50,7 +56,20 @@ const routes = [
   },
 ]
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
 })
+
+router.beforeEach((to, from, next) => {
+  const role = localStorage.getItem('role')
+
+  if (to.meta.adminOnly && role !== 'admin') {
+    next('/profile')
+    return
+  }
+
+  next()
+})
+
+export default router
