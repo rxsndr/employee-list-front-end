@@ -10,18 +10,18 @@
         <v-menu v-model="profileMenu" :close-on-content-click="false" location="bottom end" offset="8">
           <template v-slot:activator="{ props }">
             <v-avatar v-bind="props" color="primary" size="36" class="mr-3" style="cursor:pointer;">
-              <span style="font-size:13px; font-weight:700;">RS</span>
+              <span style="font-size:13px; font-weight:700;">{{ userInitials }}</span>
             </v-avatar>
           </template>
           <v-card rounded="xl" elevation="4" min-width="220" border>
             <v-list-item class="pt-4 pb-2 px-4">
               <template v-slot:prepend>
                 <v-avatar color="primary" size="40">
-                  <span style="font-size:14px; font-weight:700;">RS</span>
+                  <span style="font-size:14px; font-weight:700;">{{ userInitials }}</span>
                 </v-avatar>
               </template>
-              <v-list-item-title class="font-weight-bold" style="font-size:14px;">Rexsander</v-list-item-title>
-              <v-list-item-subtitle style="font-size:12px;">rexsander@email.com</v-list-item-subtitle>
+              <v-list-item-title class="font-weight-bold" style="font-size:14px;">{{ userFullName }}</v-list-item-title>
+              <v-list-item-subtitle style="font-size:12px;">{{ userEmail }}</v-list-item-subtitle>
             </v-list-item>
             <v-divider class="my-1" />
             <v-list density="compact" nav class="pb-2">
@@ -66,6 +66,7 @@ export default {
       sidebarExpanded: false,
       profileMenu: false,
       logoutDialog: false,
+      currentUser: JSON.parse(localStorage.getItem('user') || '{}'),
     }
   },
   computed: {
@@ -78,6 +79,20 @@ export default {
       }
       return map[this.$route.path] || 'Pesbuk'
     },
+
+    userFullName() {
+      return `${this.currentUser.first_name || ''} ${this.currentUser.last_name || ''}`.trim() || 'User'
+    },
+
+    userEmail() {
+      return this.currentUser.email || ''
+    },
+
+    userInitials() {
+      const first = this.currentUser.first_name?.charAt(0) || ''
+      const last = this.currentUser.last_name?.charAt(0) || ''
+      return `${first}${last}`.toUpperCase() || 'U'
+    },
   },
   methods: {
     onLogoutClick() {
@@ -85,6 +100,9 @@ export default {
       this.logoutDialog = true
     },
     handleLogoutConfirmed() {
+      localStorage.removeItem('token')
+      localStorage.removeItem('role')
+      localStorage.removeItem('user')
       this.$router.push('/')
     },
   },

@@ -86,15 +86,15 @@
 </template>
 
 <script>
-import api from '@/services/axios'
-import { API_ENDPOINTS } from '@/constants'
+import axios from '@/axios'
+import constant from '@/constant'
 
 const emptyEmployee = () => ({
   firstName: '',
-  lastName: '',
-  email: '',
-  position: '',
-  salary: '',
+  lastName:  '',
+  email:     '',
+  position:  '',
+  salary:    '',
 })
 
 export default {
@@ -109,12 +109,12 @@ export default {
   data() {
     return {
       submitting: false,
-      form: emptyEmployee(),
+      form:       emptyEmployee(),
       rules: {
         required: v => !!String(v || '').trim() || 'This field is required.',
-        name: v => /^[A-Za-z\s'-]+$/.test(String(v || '')) || 'Use letters only.',
-        email: v => /.+@.+\..+/.test(String(v || '')) || 'Enter a valid email address.',
-        salary: v => Number(v) >= 0 || 'Salary must be 0 or higher.',
+        name:     v => /^[A-Za-z\s'-]+$/.test(String(v || '')) || 'Use letters only.',
+        email:    v => /.+@.+\..+/.test(String(v || '')) || 'Enter a valid email address.',
+        salary:   v => Number(v) >= 0 || 'Salary must be 0 or higher.',
       },
     }
   },
@@ -140,19 +140,31 @@ export default {
       try {
         const payload = {
           first_name: this.form.firstName.trim(),
-          last_name: this.form.lastName.trim(),
-          email: this.form.email.trim(),
-          position: this.form.position.trim(),
-          salary: Number(this.form.salary),
+          last_name:  this.form.lastName.trim(),
+          email:      this.form.email.trim(),
+          position:   this.form.position.trim(),
+          salary:     Number(this.form.salary),
         }
 
-        const response = await api.post(API_ENDPOINTS.ADD_EMPLOYEE, payload)
+        const response = await axios.post(
+          constant.add_employee,
+          payload,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Accept:         'application/json',
+              Authorization:  `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
 
         this.$emit('added', response.data.data)
         this.resetForm()
         this.internalOpen = false
       } catch (error) {
-        this.$emit('error', error?.response?.data?.message || 'Unable to add employee.')
+        console.error('Error adding employee:', error)
+        const message = error.response?.data?.message || 'Unable to add employee.'
+        this.$emit('error', message)
       } finally {
         this.submitting = false
       }

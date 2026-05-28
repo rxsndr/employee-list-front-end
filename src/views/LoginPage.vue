@@ -128,6 +128,9 @@
 </template>
 
 <script>
+import axios from '@/axios'
+import constant from '@/constant'
+
 export default {
   name: 'LoginPage',
 
@@ -179,28 +182,40 @@ export default {
         return
       }
 
-      if (this.password.length < 6) {
-        this.passwordError = 'Password must be at least 6 characters.'
+      if (!this.password) {
+        this.passwordError = 'Password is required.'
         return
       }
 
       this.loading = true
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      this.loading = false
 
-      if (this.email === 'admin@email.com' && this.password === 'password123') {
+      try {
+        const response = await axios.post(constant.login, {
+          email: this.email,
+          password: this.password,
+        })
+
+        const user = response.data.user
+        const token = response.data.token
+        const role = response.data.role
+
+        localStorage.setItem('token', token)
+        localStorage.setItem('role', role)
+        localStorage.setItem('user', JSON.stringify(user))
+
         this.loginSuccess = true
-        this.snackbarMessage = `Welcome back, ${this.email}!`
+        this.snackbarMessage = `Welcome back, ${user.first_name}!`
         this.snackbar = true
 
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 800))
         this.$router.push('/dashboard')
-      } else {
+      } catch (error) {
         this.loginSuccess = false
-        this.snackbarMessage = 'Invalid email or password. Please try again.'
+        this.snackbarMessage = error.response?.data?.message || 'Invalid email or password. Please try again.'
+        this.snackbar = true
+      } finally {
+        this.loading = false
       }
-
-      this.snackbar = true
     },
 
     toggleTheme() {

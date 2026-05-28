@@ -239,8 +239,10 @@
 </template>
 
 <script>
-import api from '@/services/axios'
-import { API_ENDPOINTS } from '@/constants'
+import axios from '@/axios'
+import utils from '@/utils'
+import constant from '@/constant'
+
 import EmployeeAddDialog from '@/components/EmployeeAddDialog.vue'
 import EmployeeDeleteConfirmDialog from '@/components/EmployeeDeleteConfirmDialog.vue'
 
@@ -327,19 +329,30 @@ export default {
     },
   },
 
-  mounted() {
-    this.fetchEmployees()
+  async mounted() {
+    await this.fetchEmployees()
   },
 
   methods: {
     async fetchEmployees() {
       try {
-        const response = await api.get(API_ENDPOINTS.GET_EMPLOYEES)
-        const employees = response.data.data || response.data
-
+        const response = await axios.post(
+          utils._api(constant.get_employees),
+          {},
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Accept:         'application/json',
+              Authorization:  `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+        const employees = response.data?.data || response.data
         this.employees = employees.map(employee => this.mapApiEmployee(employee))
       } catch (error) {
-        this.showSnackbar(this.errorMessage(error, 'Unable to load employees.'), 'error', 'mdi-alert-circle')
+        console.error('Error fetching employees:', error)
+        const message = error.response?.data?.message || 'Unable to load employees.'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
       }
     },
 
@@ -348,11 +361,24 @@ export default {
       if (!employeeId) return
 
       try {
-        const response = await api.post(API_ENDPOINTS.GET_EMPLOYEE, { employeeId })
-        this.employees = [this.mapApiEmployee(response.data)]
-        this.showSnackbar('Employee found.', 'success', 'mdi-account-search')
+        const response = await axios.post(
+          utils._api(constant.get_employee),
+          { employeeId },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Accept:         'application/json',
+              Authorization:  `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+        const employee = response.data?.data || response.data
+        this.employees = [this.mapApiEmployee(employee)]
+        this.showSnackbar('Employee found.', 'success', 'mdi-check-circle')
       } catch (error) {
-        this.showSnackbar(this.errorMessage(error, 'Employee not found.'), 'error', 'mdi-alert-circle')
+        console.error('Error searching employee:', error)
+        const message = error.response?.data?.message || 'Employee not found.'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
       }
     },
 
@@ -364,13 +390,11 @@ export default {
       if (field === 'name') {
         return `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
       }
-
       return String(employee[field] || '')
     },
 
     handleEmployeeAdded(apiEmployee) {
       const employee = this.mapApiEmployee(apiEmployee)
-
       this.employees.push(employee)
       this.showSnackbar(`Employee added with ID ${employee.employeeId}.`, 'success', 'mdi-check-circle')
     },
@@ -379,11 +403,11 @@ export default {
       this.selectedEmployee = employee
       this.editForm = {
         employeeId: employee.employeeId,
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        email: employee.email,
-        position: employee.position,
-        salary: String(employee.salary),
+        firstName:  employee.firstName,
+        lastName:   employee.lastName,
+        email:      employee.email,
+        position:   employee.position,
+        salary:     String(employee.salary),
       }
       this.updateDialog = true
     },
@@ -394,50 +418,78 @@ export default {
 
       try {
         const payload = {
-          id: this.selectedEmployee.id,
+          id:          this.selectedEmployee.id,
           employee_id: this.selectedEmployee.employeeId,
-          first_name: this.editForm.firstName.trim(),
-          last_name: this.editForm.lastName.trim(),
-          email: this.editForm.email.trim(),
-          position: this.editForm.position.trim(),
-          salary: Number(this.editForm.salary),
+          first_name:  this.editForm.firstName.trim(),
+          last_name:   this.editForm.lastName.trim(),
+          email:       this.editForm.email.trim(),
+          position:    this.editForm.position.trim(),
+          salary:      Number(this.editForm.salary),
         }
 
-        const response = await api.post(API_ENDPOINTS.UPDATE_EMPLOYEE, payload)
+        const response = await axios.post(
+          utils._api(constant.update_employee),
+          payload,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization:  `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+
         const updatedEmployee = response.data.data
           ? this.mapApiEmployee(response.data.data)
           : {
               ...this.selectedEmployee,
               firstName: this.editForm.firstName.trim(),
-              lastName: this.editForm.lastName.trim(),
-              email: this.editForm.email.trim(),
-              position: this.editForm.position.trim(),
-              salary: Number(this.editForm.salary),
+              lastName:  this.editForm.lastName.trim(),
+              email:     this.editForm.email.trim(),
+              position:  this.editForm.position.trim(),
+              salary:    Number(this.editForm.salary),
             }
 
         const index = this.employees.findIndex(employee => employee.id === this.selectedEmployee.id)
-        if (index !== -1) {
-          this.employees[index] = updatedEmployee
-        }
+        if (index !== -1) this.employees[index] = updatedEmployee
 
-        this.showSnackbar(response.data.message || 'Employee updated successfully.', 'info', 'mdi-pencil-circle')
+        this.showSnackbar(
+          response.data.message || 'Employee updated successfully.',
+          'success',
+          'mdi-check-circle'
+        )
         this.closeUpdateDialog()
       } catch (error) {
-        this.showSnackbar(this.errorMessage(error, 'Unable to update employee.'), 'error', 'mdi-alert-circle')
+        console.error('Error updating employee:', error)
+        const message = error.response?.data?.message || 'Unable to update employee.'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
       }
     },
 
     async deleteEmployee(employee) {
       try {
-        await api.post(API_ENDPOINTS.DELETE_EMPLOYEE, {
-          employeeId: employee.employeeId,
-        })
+        const response = await axios.post(
+          utils._api(constant.delete_employee),
+          { employeeId: employee.employeeId },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization:  `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
 
         const index = this.employees.findIndex(item => item.id === employee.id)
         if (index !== -1) this.employees.splice(index, 1)
-        this.showSnackbar(`${employee.employeeId} deleted.`, 'error', 'mdi-trash-can')
+
+        this.showSnackbar(
+        response.data.message || `${employee.employeeId} deleted.`,
+        'success',
+        'mdi-check-circle'
+      )
       } catch (error) {
-        this.showSnackbar(this.errorMessage(error, 'Unable to delete employee.'), 'error', 'mdi-alert-circle')
+        console.error('Error deleting employee:', error)
+        const message = error.response?.data?.message || 'Unable to delete employee.'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
       }
     },
 
@@ -454,7 +506,6 @@ export default {
 
     async confirmDeleteEmployee() {
       if (!this.employeeToDelete) return
-
       this.deletingEmployee = true
       await this.deleteEmployee(this.employeeToDelete)
       this.closeDeleteDialog()
@@ -481,24 +532,24 @@ export default {
 
     formatSalary(value) {
       return Number(value).toLocaleString('en-PH', {
-        style: 'currency',
+        style:    'currency',
         currency: 'PHP',
       })
     },
 
     mapApiEmployee(employee) {
       return {
-        id: employee.id,
+        id:         employee.id,
         employeeId: employee.employee_id,
-        firstName: employee.first_name,
-        lastName: employee.last_name,
-        email: employee.email,
-        position: employee.position,
-        salary: Number(employee.salary),
-        createdAt: new Date(employee.created_at).toLocaleDateString('en-PH', {
-          year: 'numeric',
+        firstName:  employee.first_name,
+        lastName:   employee.last_name,
+        email:      employee.email,
+        position:   employee.position,
+        salary:     Number(employee.salary),
+        createdAt:  new Date(employee.created_at).toLocaleDateString('en-PH', {
+          year:  'numeric',
           month: 'short',
-          day: 'numeric',
+          day:   'numeric',
         }),
       }
     },
