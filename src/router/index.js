@@ -61,15 +61,12 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(to => {
   const role = localStorage.getItem('role')
 
   if (to.meta.adminOnly && role !== 'admin') {
-    next('/profile')
-    return
+    return '/profile'
   }
-
-  next()
 })
 
 export default router

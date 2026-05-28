@@ -8,7 +8,15 @@
         <h1 class="page-title">Documents</h1>
         <p class="page-sub">Manage all your records here</p>
       </div>
-      <v-btn color="blue-grey-darken-4" variant="flat" rounded="lg" size="large" prepend-icon="mdi-plus" @click="openAddDialog">
+      <v-btn
+        v-if="!isAdmin"
+        color="blue-grey-darken-4"
+        variant="flat"
+        rounded="lg"
+        size="large"
+        prepend-icon="mdi-plus"
+        @click="openAddDialog"
+      >
         Add File
       </v-btn>
     </div>
@@ -16,25 +24,71 @@
     <!-- Summary Bar + Search -->
     <div class="toolbar-bar">
       <v-chip color="primary" variant="tonal" size="small" prepend-icon="mdi-file-multiple-outline">
-        {{ store.total }} {{ store.total === 1 ? 'document' : 'documents' }} total
+        <template v-if="isAdmin">
+          {{ employeeTotal }} {{ employeeTotal === 1 ? 'employee' : 'employees' }}
+        </template>
+        <template v-else>
+          {{ documentTotal }} {{ documentTotal === 1 ? 'document' : 'documents' }} total
+        </template>
       </v-chip>
 
-      <v-text-field
+      <SearchFilterField
         v-model="search"
-        placeholder="Search by name, age or address..."
-        prepend-inner-icon="mdi-magnify"
-        variant="outlined"
-        density="compact"
-        rounded="lg"
-        hide-details
-        clearable
-        style="max-width: 300px;"
+        v-model:selected-filter-value="selectedSearchFilterValue"
+        :filters="activeSearchFilters"
         @update:modelValue="currentPage = 1"
       />
     </div>
 
+    <!-- Loading Skeleton -->
+    <v-card v-if="loadingDocuments || (isAdmin && loadingEmployees)" rounded="lg" elevation="1" class="table-card table-skeleton-card">
+      <div class="skeleton-header">
+        <v-skeleton-loader type="chip" />
+        <v-skeleton-loader type="button" />
+      </div>
+
+      <v-skeleton-loader
+        type="table"
+        class="document-table-skeleton"
+      />
+    </v-card>
+
+    <!-- Admin employee cards -->
+    <div v-else-if="isAdmin" class="employee-document-grid">
+      <div v-if="filteredEmployeeCards.length === 0" class="empty-state">
+        <v-icon icon="mdi-account-search-outline" size="56" color="grey-lighten-1" class="mb-3" />
+        <h3 class="empty-state__title">No employees found</h3>
+        <p class="empty-state__sub">Try another employee name, email, or position.</p>
+      </div>
+
+      <template v-else>
+        <v-card
+          v-for="employee in filteredEmployeeCards"
+          :key="employee.id"
+          rounded="lg"
+          elevation="1"
+          class="employee-document-card"
+          @click="openEmployeeDocuments(employee)"
+        >
+          <v-card-text class="employee-document-card__body">
+            <v-avatar color="primary" variant="tonal" size="46">
+              <span class="employee-document-card__initials">{{ employeeInitials(employee) }}</span>
+            </v-avatar>
+            <div class="employee-document-card__main">
+              <p class="employee-document-card__name">{{ employee.firstName }} {{ employee.lastName }}</p>
+              <p class="employee-document-card__meta">{{ employee.email }}</p>
+              <p class="employee-document-card__meta">{{ employee.position }}</p>
+            </div>
+            <v-chip color="primary" variant="tonal" size="small">
+              {{ documentCountForEmployee(employee) }}
+            </v-chip>
+          </v-card-text>
+        </v-card>
+      </template>
+    </div>
+
     <!-- Empty State (no docs at all) -->
-    <div v-if="store.total === 0" class="empty-state">
+    <div v-else-if="documentTotal === 0" class="empty-state">
       <v-icon icon="mdi-folder-open-outline" size="64" color="grey-lighten-1" class="mb-4" />
       <h3 class="empty-state__title">No documents yet</h3>
       <p class="empty-state__sub">Click "Add File" to create your first record.</p>
@@ -57,10 +111,13 @@
           <thead>
             <tr>
               <th class="table-th">#</th>
-              <th class="table-th">Name</th>
-              <th class="table-th">Age</th>
-              <th class="table-th">Address</th>
               <th class="table-th">Date Added</th>
+              <th class="table-th">Task Name</th>
+              <th class="table-th">Status</th>
+              <th class="table-th">Notes</th>
+              <th class="table-th">Deadline</th>
+              <th class="table-th">Given By</th>
+              <th class="table-th">Signature</th>
               <th class="table-th">Actions</th>
             </tr>
           </thead>
@@ -68,17 +125,31 @@
             <tr v-for="(doc, index) in pagedDocs" :key="doc.id" class="table-row">
               <td class="table-td table-td--muted">{{ (currentPage - 1) * perPage + index + 1 }}</td>
               <td class="table-td">
-                <div class="name-cell">
-                  <v-avatar color="primary" variant="tonal" size="34">
-                    <span style="font-size:12px; font-weight:700;">{{ initials(doc.name) }}</span>
-                  </v-avatar>
-                  <span class="name-cell__text">{{ doc.name }}</span>
-                </div>
+                <v-chip size="x-small" variant="tonal">{{ doc.createdAt }}</v-chip>
               </td>
-              <td class="table-td">{{ doc.age }}</td>
-              <td class="table-td">{{ doc.address }}</td>
+
+              <td class="table-td">{{ doc.taskName }}</td>
+
               <td class="table-td">
-                <v-chip size="x-small" variant="tonal" color="default">{{ doc.createdAt }}</v-chip>
+                <v-chip size="small" :color="statusColor(doc.status)" variant="tonal">
+                  {{ doc.status }}
+                </v-chip>
+              </td>
+
+              <td class="table-td">{{ doc.notes }}</td>
+
+              <td class="table-td">{{ doc.deadlineDate }}</td>
+
+              <td class="table-td">{{ doc.givenBy }}</td>
+
+              <td class="table-td">
+                <img
+                  v-if="doc.signature"
+                  :src="doc.signature"
+                  alt="Supervisor signature"
+                  style="width: 90px; height: 42px; object-fit: contain;"
+                />
+                <span v-else>-</span>
               </td>
               <td class="table-td table-td--actions">
                 <v-btn
@@ -133,6 +204,70 @@
       @confirmed="onDeleteConfirmed"
     />
 
+    <v-dialog v-model="employeeDocumentsDialog" max-width="1100">
+      <v-card rounded="lg" elevation="0" border>
+        <v-card-title class="employee-dialog-header">
+          <div class="employee-dialog-title">
+            <v-avatar color="primary" variant="tonal" size="44">
+              <span class="employee-document-card__initials">{{ selectedEmployee ? employeeInitials(selectedEmployee) : '' }}</span>
+            </v-avatar>
+            <div>
+              <p class="employee-dialog-heading">{{ selectedEmployeeName }}</p>
+              <p class="employee-dialog-sub">{{ selectedEmployee?.email }}</p>
+            </div>
+          </div>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="closeEmployeeDocuments" />
+        </v-card-title>
+        <v-divider />
+
+        <div v-if="selectedEmployeeDocuments.length === 0" class="empty-state employee-dialog-empty">
+          <v-icon icon="mdi-file-document-outline" size="48" color="grey-lighten-1" class="mb-3" />
+          <p class="empty-state__sub">No documents stored for this employee.</p>
+        </div>
+
+        <v-table v-else density="comfortable" fixed-header height="420">
+          <thead>
+            <tr>
+              <th class="table-th">#</th>
+              <th class="table-th">Date Added</th>
+              <th class="table-th">Task Name</th>
+              <th class="table-th">Status</th>
+              <th class="table-th">Notes</th>
+              <th class="table-th">Deadline</th>
+              <th class="table-th">Given By</th>
+              <th class="table-th">Signature</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(doc, index) in selectedEmployeeDocuments" :key="doc.id" class="table-row">
+              <td class="table-td table-td--muted">{{ index + 1 }}</td>
+              <td class="table-td">
+                <v-chip size="x-small" variant="tonal">{{ doc.createdAt }}</v-chip>
+              </td>
+              <td class="table-td">{{ doc.taskName }}</td>
+              <td class="table-td">
+                <v-chip size="small" :color="statusColor(doc.status)" variant="tonal">
+                  {{ doc.status }}
+                </v-chip>
+              </td>
+              <td class="table-td">{{ doc.notes }}</td>
+              <td class="table-td">{{ doc.deadlineDate }}</td>
+              <td class="table-td">{{ doc.givenBy }}</td>
+              <td class="table-td">
+                <img
+                  v-if="doc.signature"
+                  :src="doc.signature"
+                  alt="Supervisor signature"
+                  style="width: 90px; height: 42px; object-fit: contain;"
+                />
+                <span v-else>-</span>
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card>
+    </v-dialog>
+
     <!-- Snackbar -->
     <v-snackbar
       v-model="snackbar.show"
@@ -149,23 +284,46 @@
 </template>
 
 <script>
-import { documentStore } from '../plugins/store.js'
+import axios from '@/axios'
+import constant from '@/constant'
+import utils from '@/utils'
+
 import AddDocumentDialog from '../components/AddDocumentDialog.vue'
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog.vue'
+import SearchFilterField from '../components/SearchFilterField.vue'
 
 export default {
   name: 'DocumentsPage',
 
-  components: { AddDocumentDialog, DeleteConfirmDialog },
+  components: { AddDocumentDialog, DeleteConfirmDialog, SearchFilterField },
 
   data() {
     return {
-      store: documentStore,
+      documents: [],
+      employees: [],
+      loadingDocuments: false,
+      loadingEmployees: false,
       dialogOpen: false,
       selectedDocument: null,
+      selectedEmployee: null,
+      employeeDocumentsDialog: false,
       deleteDialogOpen: false,
       docToDelete: null,
       search: '',
+      selectedSearchFilterValue: localStorage.getItem('role') === 'admin' ? 'name' : 'taskName',
+      documentSearchFilters: [
+        { label: 'Task Name', value: 'taskName', icon: 'mdi-clipboard-text-outline' },
+        { label: 'Status', value: 'status', icon: 'mdi-progress-check' },
+        { label: 'Notes', value: 'notes', icon: 'mdi-note-text-outline' },
+        { label: 'Deadline', value: 'deadlineDate', icon: 'mdi-calendar-outline' },
+        { label: 'Given By', value: 'givenBy', icon: 'mdi-account-tie-outline' },
+      ],
+      employeeSearchFilters: [
+        { label: 'Name', value: 'name', icon: 'mdi-account-outline' },
+        { label: 'Email', value: 'email', icon: 'mdi-email-outline' },
+        { label: 'Position', value: 'position', icon: 'mdi-briefcase-outline' },
+        { label: 'Employee ID', value: 'employeeId', icon: 'mdi-badge-account-outline' },
+      ],
       currentPage: 1,
       perPage: 7,
       snackbar: {
@@ -178,13 +336,54 @@ export default {
   },
 
   computed: {
-    filteredDocs() {
-      if (!this.search) return this.store.documents
+    isAdmin() {
+      return localStorage.getItem('role') === 'admin'
+    },
+
+    documentTotal() {
+      return this.documents.length
+    },
+
+    employeeTotal() {
+      return this.employees.length
+    },
+
+    activeSearchFilters() {
+      return this.isAdmin ? this.employeeSearchFilters : this.documentSearchFilters
+    },
+
+    filteredEmployeeCards() {
+      if (!this.search) return this.employees
+
       const q = this.search.toLowerCase()
-      return this.store.documents.filter(d =>
-        d.name.toLowerCase().includes(q) ||
-        String(d.age).includes(q) ||
-        d.address.toLowerCase().includes(q)
+      const field = this.selectedSearchFilterValue
+
+      return this.employees.filter(employee =>
+        this.employeeSearchValue(employee, field).toLowerCase().includes(q)
+      )
+    },
+
+    selectedEmployeeDocuments() {
+      if (!this.selectedEmployee) return []
+
+      return this.documents.filter(document =>
+        document.ownerEmail === this.selectedEmployee.email
+      )
+    },
+
+    selectedEmployeeName() {
+      if (!this.selectedEmployee) return ''
+      return `${this.selectedEmployee.firstName} ${this.selectedEmployee.lastName}`.trim()
+    },
+
+    filteredDocs() {
+      if (!this.search) return this.documents
+
+      const q = this.search.toLowerCase()
+      const field = this.selectedSearchFilterValue
+
+      return this.documents.filter(d =>
+        String(d[field] || '').toLowerCase().includes(q)
       )
     },
 
@@ -198,14 +397,113 @@ export default {
     },
   },
 
+  async mounted() {
+    await this.fetchDocuments()
+    if (this.isAdmin) await this.fetchEmployees()
+  },
+
   watch: {
-    'store.total'(val) {
+    documentTotal(val) {
       const maxPage = Math.ceil(val / this.perPage) || 1
       if (this.currentPage > maxPage) this.currentPage = maxPage
     },
   },
 
   methods: {
+    async fetchDocuments() {
+      this.loadingDocuments = true
+
+      try {
+        const response = await axios.get(
+          utils._api(constant.get_documents),
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+
+        const documents = response.data?.data || response.data
+        this.documents = documents.map(document => this.mapApiDocument(document))
+      } catch (error) {
+        console.error('Error fetching documents:', error)
+        const message = error.response?.data?.message || 'Unable to load documents.'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
+      } finally {
+        this.loadingDocuments = false
+      }
+    },
+
+    async fetchEmployees() {
+      this.loadingEmployees = true
+
+      try {
+        const response = await axios.post(
+          utils._api(constant.get_employees),
+          {},
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Accept:         'application/json',
+              Authorization:  `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+
+        const employees = response.data?.data || response.data
+        this.employees = employees.map(employee => this.mapApiEmployee(employee))
+      } catch (error) {
+        console.error('Error fetching employees:', error)
+        const message = error.response?.data?.message || 'Unable to load employees.'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
+      } finally {
+        this.loadingEmployees = false
+      }
+    },
+
+    mapApiDocument(document) {
+      return {
+        id: document.id,
+        ownerEmail: document.owner_email,
+        taskName: document.task_name,
+        status: document.status,
+        notes: document.notes || '',
+        deadlineDate: document.deadline_date,
+        givenBy: document.given_by,
+        signature: document.signature,
+        createdAt: new Date(document.created_at).toLocaleDateString('en-PH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        }),
+      }
+    },
+
+    mapApiEmployee(employee) {
+      return {
+        id:         employee.id,
+        employeeId: employee.employee_id,
+        firstName:  employee.first_name,
+        lastName:   employee.last_name,
+        email:      employee.email,
+        position:   employee.position,
+      }
+    },
+
+    employeeSearchValue(employee, field) {
+      if (field === 'name') {
+        return `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+      }
+
+      return String(employee[field] || '')
+    },
+
+    statusColor(status) {
+      if (status === 'completed') return 'success'
+      if (status === 'in progress') return 'warning'
+      return 'grey'
+    },
+
     openAddDialog() {
       this.selectedDocument = null
       this.dialogOpen = true
@@ -221,25 +519,63 @@ export default {
       this.deleteDialogOpen = true
     },
 
-    onAdded() {
+    openEmployeeDocuments(employee) {
+      this.selectedEmployee = employee
+      this.employeeDocumentsDialog = true
+    },
+
+    closeEmployeeDocuments() {
+      this.employeeDocumentsDialog = false
+      this.selectedEmployee = null
+    },
+
+    documentCountForEmployee(employee) {
+      return this.documents.filter(document => document.ownerEmail === employee.email).length
+    },
+
+    employeeInitials(employee) {
+      return `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`.toUpperCase()
+    },
+
+    onAdded(apiDocument) {
+      this.documents.unshift(this.mapApiDocument(apiDocument))
       this.showSnackbar('Record added successfully!', 'success', 'mdi-check-circle')
     },
 
-    onEdited() {
+    onEdited(apiDocument) {
+      const updatedDocument = this.mapApiDocument(apiDocument)
+      const index = this.documents.findIndex(document => document.id === updatedDocument.id)
+
+      if (index !== -1) {
+        this.documents[index] = updatedDocument
+      }
+
       this.showSnackbar('Record updated successfully!', 'info', 'mdi-pencil-circle')
     },
 
-    onDeleteConfirmed(doc) {
-      documentStore.deleteDocument(doc.id)
-      this.showSnackbar(`"${doc.name}" has been deleted.`, 'error', 'mdi-trash-can')
+    async onDeleteConfirmed(doc) {
+      try {
+        await axios.post(
+          utils._api(constant.delete_document),
+          { id: doc.id },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+
+        this.documents = this.documents.filter(document => document.id !== doc.id)
+        this.showSnackbar(`"${doc.taskName}" has been deleted.`, 'error', 'mdi-trash-can')
+      } catch (error) {
+        console.error('Error deleting document:', error)
+        const message = error.response?.data?.message || 'Unable to delete document.'
+        this.showSnackbar(message, 'error', 'mdi-alert-circle')
+      }
     },
 
     showSnackbar(message, color, icon) {
       this.snackbar = { show: true, message, color, icon }
-    },
-
-    initials(name) {
-      return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
     },
   },
 }
@@ -321,12 +657,31 @@ export default {
   color: #344a53 !important;
   padding: 12px 16px !important;
 }
-.table-td { color: rgba(0,0,0,0.72); font-size: 14px; padding: 12px 16px !important; }
-.table-td--muted { color: rgba(0,0,0,0.4); font-size: 13px; }
-.table-td--actions { width: 100px; white-space: nowrap; }
-.table-row:hover td { background: rgba(89,131,146,0.08); }
-.name-cell { display: flex; align-items: center; gap: 10px; }
-.name-cell__text { font-weight: 500; }
+.table-td { 
+  color: rgba(0,0,0,0.72); 
+  font-size: 14px; 
+  padding: 12px 16px !important; 
+}
+.table-td--muted { 
+  color: rgba(0,0,0,0.4); 
+  font-size: 13px; 
+}
+.table-td--actions { 
+  width: 100px; 
+  white-space: 
+  nowrap; 
+}
+.table-row:hover td { 
+  background: rgba(89,131,146,0.08); 
+}
+.name-cell { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+}
+.name-cell__text { 
+  font-weight: 500; 
+}
 .pagination-bar {
   display: flex;
   align-items: center;
@@ -337,9 +692,100 @@ export default {
   gap: 8px;
 }
 .pagination-info { font-size: 12px; color: rgba(0,0,0,0.4); }
+.employee-document-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.employee-document-card {
+  border: 1px solid rgba(10,48,60,0.08);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.employee-document-card:hover {
+  box-shadow: 0 14px 28px rgba(10,48,60,0.12) !important;
+  transform: translateY(-3px);
+}
+.employee-document-card__body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 112px;
+}
+.employee-document-card__initials {
+  font-size: 13px;
+  font-weight: 800;
+}
+.employee-document-card__main {
+  flex: 1;
+  min-width: 0;
+}
+.employee-document-card__name {
+  color: #0a303c;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.employee-document-card__meta {
+  color: rgba(0,0,0,0.52);
+  font-size: 12px;
+  margin: 0 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.employee-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 20px;
+}
+.employee-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.employee-dialog-heading {
+  color: #0a303c;
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 3px;
+}
+.employee-dialog-sub {
+  color: rgba(0,0,0,0.52);
+  font-size: 13px;
+  margin: 0;
+}
+.employee-dialog-empty {
+  border: 0;
+  border-radius: 0;
+  padding: 54px 24px;
+}
 @media (max-width: 720px) {
   .documents { padding: 20px; }
   .hero-panel { padding: 22px; }
   .page-title { font-size: 28px; }
+  .employee-document-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.table-skeleton-card {
+  padding: 16px;
+}
+.skeleton-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.skeleton-header :deep(.v-skeleton-loader) {
+  max-width: 180px;
+}
+.document-table-skeleton {
+  border-radius: 8px;
+  overflow: hidden;
 }
 </style>

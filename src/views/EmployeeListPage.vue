@@ -22,48 +22,11 @@
             <p class="card-heading">Employee List Table</p>
             <p class="card-sub">Search by {{ selectedSearchFilter.label }}</p>
           </div>
-          <v-text-field
+          <SearchFilterField
             v-model="searchEmployeeId"
-            :placeholder="`Search ${selectedSearchFilter.label}...`"
-            prepend-inner-icon="mdi-magnify"
-            clearable
-            hide-details
-            density="compact"
-            rounded="lg"
-            class="search-field"
-          >
-            <template #append-inner>
-              <v-menu location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    variant="text"
-                    size="small"
-                    density="compact"
-                    append-icon="mdi-chevron-down"
-                    class="filter-button"
-                  >
-                    {{ selectedSearchFilter.label }}
-                  </v-btn>
-                </template>
-                <v-list density="compact" nav class="filter-menu">
-                  <v-list-item
-                    v-for="filter in searchFilters"
-                    :key="filter.value"
-                    :active="filter.value === selectedSearchFilterValue"
-                    color="primary"
-                    rounded="lg"
-                    @click="selectSearchFilter(filter.value)"
-                  >
-                    <template #prepend>
-                      <v-icon :icon="filter.icon" size="18" />
-                    </template>
-                    <v-list-item-title>{{ filter.label }}</v-list-item-title>
-                  </v-list-item>
-                </v-list>
-              </v-menu>
-            </template>
-          </v-text-field>
+            v-model:selected-filter-value="selectedSearchFilterValue"
+            :filters="searchFilters"
+          />
         </div>
         <v-divider />
 
@@ -249,6 +212,7 @@ import constant from '@/constant'
 
 import EmployeeAddDialog from '@/components/EmployeeAddDialog.vue'
 import EmployeeDeleteConfirmDialog from '@/components/EmployeeDeleteConfirmDialog.vue'
+import SearchFilterField from '@/components/SearchFilterField.vue'
 
 const emptyEmployee = () => ({
   employeeId: '',
@@ -265,6 +229,7 @@ export default {
   components: {
     EmployeeAddDialog,
     EmployeeDeleteConfirmDialog,
+    SearchFilterField,
   },
 
   data() {
@@ -390,10 +355,6 @@ export default {
         const message = error.response?.data?.message || 'Employee not found.'
         this.showSnackbar(message, 'error', 'mdi-alert-circle')
       }
-    },
-
-    selectSearchFilter(value) {
-      this.selectedSearchFilterValue = value
     },
 
     searchValue(employee, field) {
@@ -655,17 +616,6 @@ export default {
   font-weight: 700;
   margin: 0 0 3px;
 }
-.search-field {
-  max-width: 360px;
-}
-.filter-button {
-  min-width: 108px;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.filter-menu {
-  min-width: 180px;
-}
 .table-th {
   font-size: 12px !important;
   font-weight: 700 !important;
@@ -714,12 +664,6 @@ export default {
 }
 .table-skeleton {
   padding: 16px;
-}
-@media (max-width: 980px) {
-  .search-field {
-    max-width: none;
-    width: 100%;
-  }
 }
 @media (max-width: 640px) {
   .employees {
