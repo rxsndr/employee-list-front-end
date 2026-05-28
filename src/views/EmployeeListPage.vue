@@ -67,7 +67,11 @@
         </div>
         <v-divider />
 
-        <div v-if="employeeTotal === 0" class="empty-state">
+        <div v-if="loadingEmployees" class="table-skeleton">
+          <v-skeleton-loader type="table" />
+        </div>
+
+        <div v-else-if="employeeTotal === 0" class="empty-state">
           <v-icon icon="mdi-account-search-outline" size="56" color="grey-lighten-1" class="mb-3" />
           <p class="empty-title">No employees yet</p>
           <p class="empty-sub">Click Add Employee to create the first record.</p>
@@ -266,6 +270,7 @@ export default {
   data() {
     return {
       employees: [],
+      loadingEmployees: false,
       editForm: emptyEmployee(),
       selectedEmployee: null,
       addDialog: false,
@@ -335,6 +340,8 @@ export default {
 
   methods: {
     async fetchEmployees() {
+      this.loadingEmployees = true
+
       try {
         const response = await axios.post(
           utils._api(constant.get_employees),
@@ -347,12 +354,15 @@ export default {
             },
           }
         )
+
         const employees = response.data?.data || response.data
         this.employees = employees.map(employee => this.mapApiEmployee(employee))
       } catch (error) {
         console.error('Error fetching employees:', error)
         const message = error.response?.data?.message || 'Unable to load employees.'
         this.showSnackbar(message, 'error', 'mdi-alert-circle')
+      } finally {
+        this.loadingEmployees = false
       }
     },
 
@@ -701,6 +711,9 @@ export default {
 }
 .dialog-actions {
   padding: 16px 20px;
+}
+.table-skeleton {
+  padding: 16px;
 }
 @media (max-width: 980px) {
   .search-field {
