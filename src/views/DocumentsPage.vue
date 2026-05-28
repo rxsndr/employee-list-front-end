@@ -107,75 +107,18 @@
       </div>
 
       <template v-else>
-        <v-table density="comfortable" fixed-header height="420">
-          <thead>
-            <tr>
-              <th class="table-th">#</th>
-              <th class="table-th">Date Added</th>
-              <th class="table-th">Task Name</th>
-              <th class="table-th">Status</th>
-              <th class="table-th">Notes</th>
-              <th class="table-th">Deadline</th>
-              <th class="table-th">Given By</th>
-              <th class="table-th">Signature</th>
-              <th class="table-th">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(doc, index) in pagedDocs" :key="doc.id" class="table-row">
-              <td class="table-td table-td--muted">{{ (currentPage - 1) * perPage + index + 1 }}</td>
-              <td class="table-td">
-                <v-chip size="x-small" variant="tonal">{{ doc.createdAt }}</v-chip>
-              </td>
-
-              <td class="table-td">{{ doc.taskName }}</td>
-
-              <td class="table-td">
-                <v-chip size="small" :color="statusColor(doc.status)" variant="tonal">
-                  {{ doc.status }}
-                </v-chip>
-              </td>
-
-              <td class="table-td">{{ doc.notes }}</td>
-
-              <td class="table-td">{{ doc.deadlineDate }}</td>
-
-              <td class="table-td">{{ doc.givenBy }}</td>
-
-              <td class="table-td">
-                <img
-                  v-if="doc.signature"
-                  :src="doc.signature"
-                  alt="Supervisor signature"
-                  style="width: 90px; height: 42px; object-fit: contain;"
-                />
-                <span v-else>-</span>
-              </td>
-              <td class="table-td table-td--actions">
-                <v-btn
-                  icon="mdi-pencil-outline"
-                  size="small"
-                  variant="tonal"
-                  color="warning"
-                  class="mr-1"
-                  @click="openEditDialog(doc)"
-                />
-                <v-btn
-                  icon="mdi-trash-can-outline"
-                  size="small"
-                  variant="tonal"
-                  color="error"
-                  @click="openDeleteDialog(doc)"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+        <DocumentTable
+          :documents="pagedDocs"
+          :start-index="(currentPage - 1) * perPage"
+          show-actions
+          @edit="openEditDialog"
+          @delete="openDeleteDialog"
+        />
 
         <!-- Pagination -->
         <div class="pagination-bar">
           <span class="pagination-info">
-            Showing {{ (currentPage - 1) * perPage + 1 }}–{{ Math.min(currentPage * perPage, filteredDocs.length) }} of {{ filteredDocs.length }}
+            Showing {{ (currentPage - 1) * perPage + 1 }}-{{ Math.min(currentPage * perPage, filteredDocs.length) }} of {{ filteredDocs.length }}
           </span>
           <v-pagination
             v-model="currentPage"
@@ -225,46 +168,7 @@
           <p class="empty-state__sub">No documents stored for this employee.</p>
         </div>
 
-        <v-table v-else density="comfortable" fixed-header height="420">
-          <thead>
-            <tr>
-              <th class="table-th">#</th>
-              <th class="table-th">Date Added</th>
-              <th class="table-th">Task Name</th>
-              <th class="table-th">Status</th>
-              <th class="table-th">Notes</th>
-              <th class="table-th">Deadline</th>
-              <th class="table-th">Given By</th>
-              <th class="table-th">Signature</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(doc, index) in selectedEmployeeDocuments" :key="doc.id" class="table-row">
-              <td class="table-td table-td--muted">{{ index + 1 }}</td>
-              <td class="table-td">
-                <v-chip size="x-small" variant="tonal">{{ doc.createdAt }}</v-chip>
-              </td>
-              <td class="table-td">{{ doc.taskName }}</td>
-              <td class="table-td">
-                <v-chip size="small" :color="statusColor(doc.status)" variant="tonal">
-                  {{ doc.status }}
-                </v-chip>
-              </td>
-              <td class="table-td">{{ doc.notes }}</td>
-              <td class="table-td">{{ doc.deadlineDate }}</td>
-              <td class="table-td">{{ doc.givenBy }}</td>
-              <td class="table-td">
-                <img
-                  v-if="doc.signature"
-                  :src="doc.signature"
-                  alt="Supervisor signature"
-                  style="width: 90px; height: 42px; object-fit: contain;"
-                />
-                <span v-else>-</span>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+        <DocumentTable v-else :documents="selectedEmployeeDocuments" />
       </v-card>
     </v-dialog>
 
@@ -290,12 +194,13 @@ import utils from '@/utils'
 
 import AddDocumentDialog from '../components/AddDocumentDialog.vue'
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog.vue'
+import DocumentTable from '../components/DocumentTable.vue'
 import SearchFilterField from '../components/SearchFilterField.vue'
 
 export default {
   name: 'DocumentsPage',
 
-  components: { AddDocumentDialog, DeleteConfirmDialog, SearchFilterField },
+  components: { AddDocumentDialog, DeleteConfirmDialog, DocumentTable, SearchFilterField },
 
   data() {
     return {
@@ -498,12 +403,6 @@ export default {
       return String(employee[field] || '')
     },
 
-    statusColor(status) {
-      if (status === 'completed') return 'success'
-      if (status === 'in progress') return 'warning'
-      return 'grey'
-    },
-
     openAddDialog() {
       this.selectedDocument = null
       this.dialogOpen = true
@@ -648,39 +547,6 @@ export default {
 .table-card {
   overflow: hidden;
   border: 1px solid rgba(10,48,60,0.08);
-}
-.table-th {
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #344a53 !important;
-  padding: 12px 16px !important;
-}
-.table-td { 
-  color: rgba(0,0,0,0.72); 
-  font-size: 14px; 
-  padding: 12px 16px !important; 
-}
-.table-td--muted { 
-  color: rgba(0,0,0,0.4); 
-  font-size: 13px; 
-}
-.table-td--actions { 
-  width: 100px; 
-  white-space: 
-  nowrap; 
-}
-.table-row:hover td { 
-  background: rgba(89,131,146,0.08); 
-}
-.name-cell { 
-  display: flex; 
-  align-items: center; 
-  gap: 10px; 
-}
-.name-cell__text { 
-  font-weight: 500; 
 }
 .pagination-bar {
   display: flex;

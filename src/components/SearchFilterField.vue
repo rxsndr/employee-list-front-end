@@ -1,7 +1,7 @@
 <template>
   <v-text-field
     :model-value="modelValue"
-    :placeholder="`Search ${selectedFilter.label}...`"
+    :placeholder="`Search ${selectedFilter.label || 'records'}...`"
     prepend-inner-icon="mdi-magnify"
     clearable
     hide-details
@@ -21,7 +21,7 @@
             append-icon="mdi-chevron-down"
             class="filter-button"
           >
-            {{ selectedFilter.label }}
+            {{ selectedFilter.label || 'Filter' }}
           </v-btn>
         </template>
         <v-list density="compact" nav class="filter-menu">
@@ -58,7 +58,7 @@ export default {
 
   computed: {
     selectedFilter() {
-      return this.filters.find(filter => filter.value === this.selectedFilterValue) || this.filters[0]
+      return this.filters.find(filter => filter.value === this.selectedFilterValue) || this.filters[0] || {}
     },
   },
 }

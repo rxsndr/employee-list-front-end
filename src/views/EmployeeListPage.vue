@@ -267,12 +267,6 @@ export default {
   },
 
   computed: {
-    store() {
-      return {
-        total: this.employeeTotal,
-      }
-    },
-
     employeeTotal() {
       return this.employees.length
     },
@@ -328,32 +322,6 @@ export default {
         this.showSnackbar(message, 'error', 'mdi-alert-circle')
       } finally {
         this.loadingEmployees = false
-      }
-    },
-
-    async searchEmployee() {
-      const employeeId = String(this.searchEmployeeId || '').trim()
-      if (!employeeId) return
-
-      try {
-        const response = await axios.post(
-          utils._api(constant.get_employee),
-          { employeeId },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              Accept:         'application/json',
-              Authorization:  `Bearer ${localStorage.getItem('token')}`,
-            },
-          }
-        )
-        const employee = response.data?.data || response.data
-        this.employees = [this.mapApiEmployee(employee)]
-        this.showSnackbar('Employee found.', 'success', 'mdi-check-circle')
-      } catch (error) {
-        console.error('Error searching employee:', error)
-        const message = error.response?.data?.message || 'Employee not found.'
-        this.showSnackbar(message, 'error', 'mdi-alert-circle')
       }
     },
 
@@ -453,10 +421,10 @@ export default {
         if (index !== -1) this.employees.splice(index, 1)
 
         this.showSnackbar(
-        response.data.message || `${employee.employeeId} deleted.`,
-        'success',
-        'mdi-check-circle'
-      )
+          response.data.message || `${employee.employeeId} deleted.`,
+          'success',
+          'mdi-check-circle'
+        )
       } catch (error) {
         console.error('Error deleting employee:', error)
         const message = error.response?.data?.message || 'Unable to delete employee.'
@@ -489,14 +457,6 @@ export default {
       this.$refs.updateForm?.resetValidation()
     },
 
-    isUniqueEmployeeId(value, currentId = null) {
-      const employeeId = String(value || '').trim().toLowerCase()
-      if (!employeeId) return true
-      return !this.employees.some(employee =>
-        employee.id !== currentId && employee.employeeId.toLowerCase() === employeeId
-      )
-    },
-
     initials(employee) {
       return `${employee.firstName[0] || ''}${employee.lastName[0] || ''}`.toUpperCase()
     },
@@ -523,10 +483,6 @@ export default {
           day:   'numeric',
         }),
       }
-    },
-
-    errorMessage(error, fallback) {
-      return error?.response?.data?.message || fallback
     },
 
     showSnackbar(message, color, icon) {
