@@ -9,15 +9,39 @@
       <template v-slot:append>
         <v-menu v-model="profileMenu" :close-on-content-click="false" location="bottom end" offset="8">
           <template v-slot:activator="{ props }">
-            <v-avatar v-bind="props" color="primary" size="36" class="mr-3" style="cursor:pointer;">
-              <span style="font-size:13px; font-weight:700;">{{ userInitials }}</span>
+            <v-skeleton-loader
+              v-if="loadingProfilePicture"
+              v-bind="props"
+              type="avatar"
+              class="profile-avatar-skeleton mr-3"
+            />
+            <v-avatar
+              v-else
+              v-bind="props"
+              color="primary"
+              size="36"
+              class="mr-3"
+              style="cursor:pointer;"
+            >
+              <v-img v-if="profilePicture" :src="profilePicture.url" cover />
+              <span v-else style="font-size:13px; font-weight:700;">{{ userInitials }}</span>
             </v-avatar>
           </template>
           <v-card rounded="xl" elevation="4" min-width="220" border>
             <v-list-item class="pt-4 pb-2 px-4">
               <template v-slot:prepend>
-                <v-avatar color="primary" size="40">
-                  <span style="font-size:14px; font-weight:700;">{{ userInitials }}</span>
+                <v-skeleton-loader
+                  v-if="loadingProfilePicture"
+                  type="avatar"
+                  class="profile-menu-avatar-skeleton"
+                />
+                <v-avatar
+                  v-else
+                  color="primary"
+                  size="40"
+                >
+                  <v-img v-if="profilePicture" :src="profilePicture.url" cover />
+                  <span v-else style="font-size:14px; font-weight:700;">{{ userInitials }}</span>
                 </v-avatar>
               </template>
               <v-list-item-title class="font-weight-bold" style="font-size:14px;">{{ userFullName }}</v-list-item-title>
@@ -60,6 +84,9 @@
 </template>
 
 <script>
+import axios from '@/axios'
+import constant from '@/constant'
+import utils from '@/utils'
 import Sidebar from '@/components/Sidebar.vue'
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog.vue'
 
@@ -72,8 +99,15 @@ export default {
       profileMenu: false,
       logoutDialog: false,
       currentUser: JSON.parse(localStorage.getItem('user') || '{}'),
+      profilePicture: null,
+      loadingProfilePicture: false,
     }
   },
+
+  async mounted() {
+    await this.fetchProfilePicture()
+  },
+
   computed: {
     currentPageTitle() {
     const map = {
@@ -101,6 +135,27 @@ export default {
     },
   },
   methods: {
+    async fetchProfilePicture() {
+      this.loadingProfilePicture = true
+
+      try {
+        const response = await axios.get(
+          utils._api(constant.get_profile_picture),
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+
+        this.profilePicture = response.data.data
+      } catch (error) {
+        console.error('Error fetching profile picture:', error)
+      } finally {
+        this.loadingProfilePicture = false
+      }
+    },
+    
     goToProfile() {
       this.profileMenu = false
       this.$router.push('/profile')
@@ -143,5 +198,18 @@ body {
 .page-wrapper {
   min-height: 100%;
   background: #f5f7fa;
+}
+.profile-avatar-skeleton {
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+}
+.profile-menu-avatar-skeleton {
+  width: 40px;
+  height: 40px;
+}
+.profile-avatar-skeleton .v-skeleton-loader__avatar,
+.profile-menu-avatar-skeleton .v-skeleton-loader__avatar {
+  margin: 0;
 }
 </style>

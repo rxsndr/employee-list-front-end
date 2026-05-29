@@ -72,7 +72,8 @@
         >
           <v-card-text class="employee-document-card__body">
             <v-avatar color="primary" variant="tonal" size="46">
-              <span class="employee-document-card__initials">{{ employeeInitials(employee) }}</span>
+              <v-img v-if="employee.avatarUrl" :src="employee.avatarUrl" cover />
+              <span v-else class="employee-document-card__initials">{{ employeeInitials(employee) }}</span>
             </v-avatar>
             <div class="employee-document-card__main">
               <p class="employee-document-card__name">{{ employee.firstName }} {{ employee.lastName }}</p>
@@ -152,7 +153,8 @@
         <v-card-title class="employee-dialog-header">
           <div class="employee-dialog-title">
             <v-avatar color="primary" variant="tonal" size="44">
-              <span class="employee-document-card__initials">{{ selectedEmployee ? employeeInitials(selectedEmployee) : '' }}</span>
+              <v-img v-if="selectedEmployee?.avatarUrl" :src="selectedEmployee.avatarUrl" cover />
+              <span v-else class="employee-document-card__initials">{{ selectedEmployee ? employeeInitials(selectedEmployee) : '' }}</span>
             </v-avatar>
             <div>
               <p class="employee-dialog-heading">{{ selectedEmployeeName }}</p>
@@ -206,6 +208,7 @@ export default {
     return {
       documents: [],
       employees: [],
+      profilePictures: {},
       loadingDocuments: false,
       loadingEmployees: false,
       dialogOpen: false,
@@ -304,7 +307,10 @@ export default {
 
   async mounted() {
     await this.fetchDocuments()
-    if (this.isAdmin) await this.fetchEmployees()
+    if (this.isAdmin) {
+      await this.fetchProfilePictures()
+      await this.fetchEmployees()
+    }
   },
 
   watch: {
@@ -315,6 +321,27 @@ export default {
   },
 
   methods: {
+    async fetchProfilePictures() {
+      try {
+        const response = await axios.get(
+          utils._api(constant.get_profile_pictures),
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+
+        const pictures = response.data?.data || []
+        this.profilePictures = pictures.reduce((lookup, picture) => {
+          lookup[this.emailKey(picture.user_email)] = picture.url
+          return lookup
+        }, {})
+      } catch (error) {
+        console.error('Error fetching profile pictures:', error)
+      }
+    },
+
     async fetchDocuments() {
       this.loadingDocuments = true
 
@@ -391,6 +418,7 @@ export default {
         firstName:  employee.first_name,
         lastName:   employee.last_name,
         email:      employee.email,
+        avatarUrl:  this.profilePictures[this.emailKey(employee.email)] || '',
         position:   employee.position,
       }
     },
@@ -434,6 +462,10 @@ export default {
 
     employeeInitials(employee) {
       return `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`.toUpperCase()
+    },
+
+    emailKey(email) {
+      return String(email || '').trim().toLowerCase()
     },
 
     onAdded(apiDocument) {

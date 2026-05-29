@@ -65,7 +65,8 @@
               <td class="table-td">
                 <div class="employee-name">
                   <v-avatar color="primary" variant="tonal" size="34">
-                    <span class="avatar-text">{{ initials(employee) }}</span>
+                    <v-img v-if="employee.avatarUrl" :src="employee.avatarUrl" cover />
+                    <span v-else class="avatar-text">{{ initials(employee) }}</span>
                   </v-avatar>
                   <span>{{ employee.firstName }} {{ employee.lastName }}</span>
                 </div>
@@ -235,7 +236,8 @@ export default {
   data() {
     return {
       employees: [],
-      loadingEmployees: false,
+      profilePictures: {},
+      loadingEmployees: true,
       editForm: emptyEmployee(),
       selectedEmployee: null,
       addDialog: false,
@@ -294,10 +296,32 @@ export default {
   },
 
   async mounted() {
+    await this.fetchProfilePictures()
     await this.fetchEmployees()
   },
 
   methods: {
+    async fetchProfilePictures() {
+      try {
+        const response = await axios.get(
+          utils._api(constant.get_profile_pictures),
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        )
+
+        const pictures = response.data?.data || []
+        this.profilePictures = pictures.reduce((lookup, picture) => {
+          lookup[this.emailKey(picture.user_email)] = picture.url
+          return lookup
+        }, {})
+      } catch (error) {
+        console.error('Error fetching profile pictures:', error)
+      }
+    },
+
     async fetchEmployees() {
       this.loadingEmployees = true
 
@@ -345,6 +369,7 @@ export default {
         firstName:  employee.firstName,
         lastName:   employee.lastName,
         email:      employee.email,
+        avatarUrl:  this.profilePictures[employee.email] || '',
         position:   employee.position,
         salary:     String(employee.salary),
       }
@@ -475,6 +500,7 @@ export default {
         firstName:  employee.first_name,
         lastName:   employee.last_name,
         email:      employee.email,
+        avatarUrl:  this.profilePictures[this.emailKey(employee.email)] || '',
         position:   employee.position,
         salary:     Number(employee.salary),
         createdAt:  new Date(employee.created_at).toLocaleDateString('en-PH', {
@@ -483,6 +509,10 @@ export default {
           day:   'numeric',
         }),
       }
+    },
+
+    emailKey(email) {
+      return String(email || '').trim().toLowerCase()
     },
 
     showSnackbar(message, color, icon) {
